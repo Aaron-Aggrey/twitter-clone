@@ -2,17 +2,30 @@
 import Sidebar from "../components/Sidebar";
 import RightSidebar from "../components/RightSidebar";
 import TweetFeed from "../components/TweetFeed";
+import { makeSureDbIsReady } from "../lib/db";
+import { Tweet } from "../models/Tweet";
 
 async function getTweets() {
-  const res = await fetch("http://localhost:3000/api/tweets", {
-    cache: "no-store",
-  });
+  try {
+    // Connect to MongoDB
+    await makeSureDbIsReady();
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch tweets");
+    // Retrieve tweets, newest first
+    const tweets = await Tweet.find({})
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Convert MongoDB values into client-friendly data
+    return tweets.map((tweet) => ({
+      ...tweet,
+      _id: tweet._id.toString(),
+      createdAt: tweet.createdAt?.toISOString() ?? null,
+      updatedAt: tweet.updatedAt?.toISOString() ?? null,
+    }));
+  } catch (error) {
+    console.error("Error fetching tweets from MongoDB:", error);
+    throw new Error("Unable to load tweets. Please try again later.");
   }
-
-  return res.json();
 }
 
 export default async function HomePage() {
